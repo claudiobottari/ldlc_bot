@@ -8,7 +8,7 @@ ths = {'3060 ti': 450, '3070 ti': 650, '3070': 550, '3080': 800}
 # how many seconds betweens checks   
 sleep_time = 60
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
-driver_path = 'edgedriver93/msedgedriver.exe'
+driver_path = 'edgedriver/msedgedriver.exe'
 
 import time
 import webbrowser
