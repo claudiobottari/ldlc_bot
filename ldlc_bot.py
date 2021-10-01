@@ -8,7 +8,7 @@ ths = {'3060 ti': 450, '3070 ti': 650, '3070': 550, '3080': 800}
 # how many seconds betweens checks   
 sleep_time = 60
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
-driver_path = 'edgedriver93/msedgedriver.exe'
+driver_path = 'edgedriver/msedgedriver.exe'
 
 import time
 import webbrowser
@@ -22,6 +22,7 @@ from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
+from msedge.selenium_tools import Edge, EdgeOptions
 
 class GPU:
     def __init__(self, x):
@@ -29,6 +30,16 @@ class GPU:
     
     def __repr__(self):
         return f'[{self.title}] {self.price}'
+
+def get_driver(driver_path):
+    driverOptions = EdgeOptions()
+    driverOptions.use_chromium = True
+    driverOptions.binary_location = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    driverOptions.add_argument('log-level=3')
+    driverOptions.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+    DRIVER_PATH = str(Path(driver_path).resolve())
+    return Edge(executable_path=DRIVER_PATH, options=driverOptions)
 
 def clear_screen():
     _ = os.system('clear' if os.name == 'posix' else 'cls')
@@ -75,7 +86,7 @@ def print_header(ths):
     print(f'The BOT will keep running until manually stopped, current time: {current_time()}\n\n')
 
 def main(driver_path, ths, sleep_time):
-    driver = webdriver.Edge(executable_path=str(Path(driver_path).resolve()))
+    driver = get_driver(driver_path)
     while True:
         clear_screen()
         print_header(ths)
