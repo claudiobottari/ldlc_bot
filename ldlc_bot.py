@@ -6,7 +6,7 @@ __license__ = "MIT"
 # target prices for each GPU
 ths = {'3060 ti': 450, '3070 ti': 650, '3070': 550, '3080': 800}
 # how many seconds betweens checks   
-sleep_time = 60
+sleep_time = 5
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
 
@@ -25,11 +25,12 @@ from selenium.common.exceptions import NoSuchElementException
 from msedge.selenium_tools import Edge, EdgeOptions
 
 class GPU:
-    def __init__(self, x):
+    def __init__(self, x, origin):
         (self.id, self.title, self.url, self.price, self.availability) = x
+        self.origin = origin
     
     def __repr__(self):
-        return f'[{self.title}] {self.price}'
+        return f'{self.origin} [{self.title}] {self.price}'
 
 def get_driver(driver_path):
     driverOptions = EdgeOptions()
@@ -52,18 +53,25 @@ def alarm():
 def current_time():
     return datetime.now().strftime("%H:%M:%S")
 
-def get_data(driver):
+def get_data_ldlc(driver):
     driver.get('https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/')
     uids = [x.get_attribute("id") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]/div[@class="pic"]/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//h3[@class="title-3"]/a')]
     prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//div[@class="price"]/div')]
     availabilities = ['disabled' not in x.get_attribute("class") for x in driver.find_elements_by_xpath('//div[@class="basket"]/a')]
-    data = zip(uids, titles, urls, prices, availabilities)
-    return [GPU(x) for x in list(data) if x[4]] #return only the available GPUs
+    return [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4]] #return only the available GPUs
+
+def get_data_next(driver):
+    driver.get('https://www.nexths.it//Products/getSkuFromLev/page/1/l0/Hardware%20Software/l1/Schede%20Video/sort/Dispo/rpp/48')
+    uids = [x.get_attribute("id") for x in driver.find_elements_by_xpath('//div[@class="thumbnailx pcbox"]/a/img')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@class="thumbnailx pcbox"]/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//p[@class="gallery-descrbreve"]')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//span[@class="lista-prezzo oswald"]')]
+    availabilities = ['NON' not in x.text for x in driver.find_elements_by_xpath('//p[@class="lista-dispo"]/a')]
+    return [GPU(x, 'Next') for x in zip(uids, titles, urls, prices, availabilities) if x[4]] #return only the available GPUs
 
 def check_price(driver, data, ths):
-    print('Those GPUs where found:')
     for card in data:
         print(card)
         for th in ths:
@@ -90,8 +98,12 @@ def main(driver_path, ths, sleep_time):
     while True:
         clear_screen()
         print_header(ths)
-        data = get_data(driver)
-        check_price(driver, data, ths)
+
+        try:
+            check_price(driver, get_data_ldlc(driver), ths)
+            check_price(driver, get_data_next(driver), ths)
+        except Exception as e: print(e)
+
         print()
         sleep(sleep_time)
  
