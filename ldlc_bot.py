@@ -4,7 +4,7 @@ __version__ = "0.2.0"
 __license__ = "MIT"
 
 # target prices for each GPU
-ths = {'3060 ti': 450, '3070 ti': 650, '3060': 350, '3070': 550, '3080': 800}
+ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 800, '3090': 1000}
 # how many seconds betweens checks   
 sleep_time = 60
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
@@ -12,7 +12,7 @@ driver_path = 'edgedriver/msedgedriver.exe'
 
 import time
 import webbrowser
-import os
+import os, sys
 from time import sleep
 
 from playsound import playsound
@@ -103,8 +103,7 @@ def print_footer(ths, min_prices, sleep_time):
         print(f'\t[{th}] target {ths[th]} €, current best price {price}')
     print(f'\nNext run at: {get_time_str(sleep_time)}\n\n')
 
-def main(driver_path, ths, sleep_time):
-    driver = get_driver(driver_path)
+def main(driver, ths, sleep_time):
     min_prices = {x: 99999 for x in ths.keys()}
     while True:
         clear_screen()
@@ -112,12 +111,19 @@ def main(driver_path, ths, sleep_time):
 
         try:
             check_price(driver, get_data_ldlc(driver), ths, min_prices)
-            check_price(driver, get_data_next(driver), ths, min_prices)
+            # check_price(driver, get_data_next(driver), ths, min_prices)
         except Exception as e: print(e)
 
         print_footer(ths, min_prices, sleep_time)
         sleep(sleep_time)
+        
  
 if __name__ == "__main__":
-    """ This is executed when run from the command line """
-    main(driver_path, ths, sleep_time)
+    driver = get_driver(driver_path)
+    
+    try:
+        main(driver, ths, sleep_time)
+    except KeyboardInterrupt:
+        print('Interrupted')
+    
+    driver.quit()
