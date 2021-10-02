@@ -111,7 +111,7 @@ def main(driver, ths, sleep_time):
 
         try:
             check_price(driver, get_data_ldlc(driver), ths, min_prices)
-            # check_price(driver, get_data_next(driver), ths, min_prices)
+            check_price(driver, get_data_next(driver), ths, min_prices)
         except Exception as e: print(e)
 
         print_footer(ths, min_prices, sleep_time)
