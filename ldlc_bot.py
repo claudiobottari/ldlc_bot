@@ -72,13 +72,22 @@ def get_data_next(driver):
     availabilities = ['NON' not in x.text for x in driver.find_elements_by_xpath('//p[@class="lista-dispo"]/a')]
     return [GPU(x, 'Next') for x in zip(uids, titles, urls, prices, availabilities) if x[4]] #return only the available GPUs
 
+def get_data_amazon_it(driver):
+    driver.get('https://www.amazon.it/s?k=nvidia&i=computers&rh=n%3A460090031%2Cp_n_feature_seven_browse-bin%3A16067946031&dc&__mk_it_IT=%C3%85M%C3%85%C5%BD%C3%95%C3%91&qid=1633335342&rnid=8321625031&ref=sr_nr_p_n_feature_seven_browse-bin_2')
+    uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]//h2/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    availabilities = [True for x in range(len(prices))]
+    return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities)]
+
 def check_price(driver, data, ths, min_prices):
     for card in data:
         print(card)
         for th in ths:
             if th in card.title:
                 min_prices[th] = min(min_prices[th], card.price)
-                if ths[th] > card.price:
+                if ths[th] > card.price and card.price > ths[th] / 2: # check threshold and also discard prices too low (can be GPU accessories and scams)
                     print('\n\nTARGET FOUND')
                     print(card)
                     print(f'Price is {card.price} while threshold was set to {ths[th]}\n\n')
@@ -95,27 +104,35 @@ def print_header(ths):
     #     print(f'\t[{th}] for less than {ths[th]}')
     print(f'The BOT will keep running until manually stopped, current time: {get_time_str()}\n\n')
 
-def print_footer(ths, min_prices, sleep_time):
+def print_footer(ths, min_prices, elapsed, sleep_time):
     print('\nResults:')
     for th in min_prices:
         price = min_prices[th]
         price = str(price) + ' €' if price < 99999 else '-'
         print(f'\t[{th}] target {ths[th]} €, current best price {price}')
-    print(f'\nNext run at: {get_time_str(sleep_time)}\n\n')
+    print(f'\nCompletion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
 
 def main(driver, ths, sleep_time):
     min_prices = {x: 99999 for x in ths.keys()}
     while True:
-        clear_screen()
+        # start job
+        start = time.time()
+        clear_screen()  
         print_header(ths)
 
+        # read and check data
         try:
             check_price(driver, get_data_ldlc(driver), ths, min_prices)
             check_price(driver, get_data_next(driver), ths, min_prices)
+            check_price(driver, get_data_amazon_it(driver), ths, min_prices)
         except Exception as e: print(e)
 
-        print_footer(ths, min_prices, sleep_time)
-        sleep(sleep_time)
+        # calc time and schedule next run 
+        end = time.time()
+        elapsed = int(end - start)
+        actual_sleep_time = sleep_time - elapsed
+        print_footer(ths, min_prices, elapsed, actual_sleep_time)
+        sleep(actual_sleep_time)
         
  
 if __name__ == "__main__":
