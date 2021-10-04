@@ -1,0 +1,4 @@
+tabulate==0.8.9
+selenium==3.141.0
+playsound==1.2.2
+msedge-selenium-tools==3.141.3

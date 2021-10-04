@@ -12,18 +12,14 @@ driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
 low_th = 250
 
-import time
-import os, sys
+import time, os
 from time import sleep
 from tabulate import tabulate
 
 from playsound import playsound
 from datetime import datetime, timedelta
-
 from pathlib import Path
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
+
 from msedge.selenium_tools import Edge, EdgeOptions
 
 class GPU:
