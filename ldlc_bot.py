@@ -76,11 +76,20 @@ def get_data_next(driver):
 def get_data_amazon_it(driver):
     driver.get('https://www.amazon.it/s?k=nvidia&i=computers&rh=n%3A460090031%2Cp_n_feature_seven_browse-bin%3A16067946031&dc&__mk_it_IT=%C3%85M%C3%85%C5%BD%C3%95%C3%91&qid=1633335342&rnid=8321625031&ref=sr_nr_p_n_feature_seven_browse-bin_2')
     uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
-    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]//h2/a')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
     return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+
+def get_data_amazon_es(driver):
+    driver.get('https://www.amazon.es/s?i=computers&bbn=937935031&rh=n%3A667049031%2Cn%3A937912031%2Cn%3A17478031031%2Cn%3A937935031%2Cp_n_feature_seven_browse-bin%3A16069169031%2Cp_n_condition-type%3A15144009031&s=price-desc-rank&dc&fs=true&qid=1633341030&rnid=15144007031&ref=sr_st_price-desc-rank')
+    uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[11]')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    availabilities = [True for x in range(len(prices))]
+    return [GPU(x, 'Amazon.es') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
 
 def check_price(driver, data, ths, min_prices):
     if len(data) == 0: return
@@ -114,6 +123,9 @@ def print_footer(ths, min_prices, elapsed, sleep_time):
         price = str(price) + ' €' if price < 99999 else '-'
         print(f'\t[{th}] target {ths[th]} €, current best price {price}')
     print(f'\nCompletion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
+    if sleep_time == 1:
+        print('WARNING: it seems there are too many things to do for the desiderate polling time! Please check...')
+    print
 
 def main(driver, ths, sleep_time):
     min_prices = {x: 99999 for x in ths.keys()}
@@ -127,13 +139,14 @@ def main(driver, ths, sleep_time):
         try:
             check_price(driver, get_data_ldlc(driver), ths, min_prices)
             check_price(driver, get_data_amazon_it(driver), ths, min_prices)
+            check_price(driver, get_data_amazon_es(driver), ths, min_prices)
             check_price(driver, get_data_next(driver), ths, min_prices)
         except Exception as e: print(e)
 
         # calc time and schedule next run 
         end = time.time()
         elapsed = int(end - start)
-        actual_sleep_time = sleep_time - elapsed
+        actual_sleep_time = max(1, sleep_time - elapsed) # to avoid negative sleep time 
         print_footer(ths, min_prices, elapsed, actual_sleep_time)
         sleep(actual_sleep_time)
         
