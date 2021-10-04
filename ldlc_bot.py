@@ -9,11 +9,13 @@ ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550,
 sleep_time = 60
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
+# mininum price used to avoid accessories (such as coolers) and old cheap GPUs
+low_th = 250
 
 import time
-import webbrowser
 import os, sys
 from time import sleep
+from tabulate import tabulate
 
 from playsound import playsound
 from datetime import datetime, timedelta
@@ -31,6 +33,9 @@ class GPU:
     
     def __repr__(self):
         return f'{self.origin} [{self.title}] {self.price}'
+
+    def to_array(self):
+        return [self.origin, self.title[:80], self.price]
 
 def get_driver(driver_path):
     driverOptions = EdgeOptions()
@@ -61,7 +66,7 @@ def get_data_ldlc(driver):
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//h3[@class="title-3"]/a')]
     prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//div[@class="price"]/div')]
     availabilities = ['disabled' not in x.get_attribute("class") for x in driver.find_elements_by_xpath('//div[@class="basket"]/a')]
-    return [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4]] #return only the available GPUs
+    return [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4] and x[3] > low_th] #return only the available GPUs
 
 def get_data_next(driver):
     driver.get('https://www.nexths.it//Products/getSkuFromLev/page/1/l0/Hardware%20Software/l1/Schede%20Video/sort/Dispo/rpp/48')
@@ -70,7 +75,7 @@ def get_data_next(driver):
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//p[@class="gallery-descrbreve"]')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//span[@class="lista-prezzo oswald"]')]
     availabilities = ['NON' not in x.text for x in driver.find_elements_by_xpath('//p[@class="lista-dispo"]/a')]
-    return [GPU(x, 'Next') for x in zip(uids, titles, urls, prices, availabilities) if x[4]] #return only the available GPUs
+    return [GPU(x, 'Next') for x in zip(uids, titles, urls, prices, availabilities) if x[4] and x[3] > low_th] #return only the available GPUs
 
 def get_data_amazon_it(driver):
     driver.get('https://www.amazon.it/s?k=nvidia&i=computers&rh=n%3A460090031%2Cp_n_feature_seven_browse-bin%3A16067946031&dc&__mk_it_IT=%C3%85M%C3%85%C5%BD%C3%95%C3%91&qid=1633335342&rnid=8321625031&ref=sr_nr_p_n_feature_seven_browse-bin_2')
@@ -79,11 +84,13 @@ def get_data_amazon_it(driver):
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
-    return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities)]
+    return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
 
 def check_price(driver, data, ths, min_prices):
+    if len(data) == 0: return
+
+    print(tabulate([x.to_array() for x in data], headers=['Origin', 'Title', 'Price'], tablefmt="plain"))
     for card in data:
-        print(card)
         for th in ths:
             if th in card.title:
                 min_prices[th] = min(min_prices[th], card.price)
@@ -123,8 +130,8 @@ def main(driver, ths, sleep_time):
         # read and check data
         try:
             check_price(driver, get_data_ldlc(driver), ths, min_prices)
-            check_price(driver, get_data_next(driver), ths, min_prices)
             check_price(driver, get_data_amazon_it(driver), ths, min_prices)
+            check_price(driver, get_data_next(driver), ths, min_prices)
         except Exception as e: print(e)
 
         # calc time and schedule next run 
