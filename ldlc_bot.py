@@ -10,7 +10,7 @@ sleep_time = 60
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
-low_th = 250
+low_th = 270
 
 import time, os
 from time import sleep
@@ -26,12 +26,20 @@ class GPU:
     def __init__(self, x, origin):
         (self.id, self.title, self.url, self.price, self.availability) = x
         self.origin = origin
+        self.target = None
+        
+    def set_target(self, target):
+        self.target = target
+        return self
     
     def __repr__(self):
         return f'{self.origin} [{self.title}] {self.price}'
 
     def to_array(self):
-        return [self.origin, self.title[:80], self.price]
+        if self.target != None:
+            return [self.origin, self.title[:80], self.price if self.price != 99999 else '-', self.target]
+        else:
+            return [self.origin, self.title[:80], self.price if self.price != 99999 else '-', '']
 
 def get_driver(driver_path):
     driverOptions = EdgeOptions()
@@ -91,14 +99,33 @@ def get_data_amazon_es(driver):
     availabilities = [True for x in range(len(prices))]
     return [GPU(x, 'Amazon.es') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
 
-def check_price(driver, data, ths, min_prices):
+def get_data_amazon_fr(driver):
+    driver.get('https://www.amazon.fr/s?keywords=Cartes+graphiques&i=computers&rh=n%3A430340031%2Cp_n_feature_seven_browse-bin%3A15941744031%2Cp_36%3A27000-100000%2Cp_n_shipping_option-bin%3A2019350031%2Cp_n_condition-type%3A15135266031&dc&_encoding=UTF8&c=ts&qid=1633350520&rnid=15135264031&ts_id=430340031&ref=sr_nr_p_n_condition-type_1')
+    uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    availabilities = [True for x in range(len(prices))]
+    return [GPU(x, 'Amazon.fr') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+
+def get_data_amazon_de(driver, page):
+    driver.get(f'https://www.amazon.de/-/en/s?k=Graphics+Cards&i=computers&rh=n%3A430161031%2Cp_n_feature_seven_browse-bin%3A15664227031%7C22756211031%2Cp_n_condition-type%3A776949031%2Cp_36%3A27000-200000&dc&page={page}&language=en&_encoding=UTF8&c=ts&qid=1633350892&rnid=428358031&ts_id=430161031')
+    uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
+    prices = [float(x.text.replace(' ', '').replace(',', '').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    availabilities = [True for x in range(len(prices))]
+    return [GPU(x, 'Amazon.de') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+
+def check_price(driver, data, ths, min_gpus):
     if len(data) == 0: return
 
-    print(tabulate([x.to_array() for x in data], headers=['Origin', 'Title', 'Price'], tablefmt="plain"))
+    print(tabulate([x.to_array() for x in data], headers=['Origin', 'Title', 'Price', ''], tablefmt="plain"))
     for card in data:
         for th in ths:
-            if th in card.title:
-                min_prices[th] = min(min_prices[th], card.price)
+            if th in card.title or th in card.title.replace(' ', ''):
+                if min_gpus[th].price > card.price:
+                    min_gpus[th] = card.set_target(ths[th])
                 if ths[th] > card.price and card.price > ths[th] / 2: # check threshold and also discard prices too low (can be GPU accessories and scams)
                     print('\n\nTARGET FOUND')
                     print(card)
@@ -112,42 +139,42 @@ def check_price(driver, data, ths, min_prices):
 
 def print_header(ths):
     print('GPU BOT by Claudio')
-    # for th in ths:
-    #     print(f'\t[{th}] for less than {ths[th]}')
     print(f'The BOT will keep running until manually stopped, current time: {get_time_str()}\n\n')
 
-def print_footer(ths, min_prices, elapsed, sleep_time):
+def print_footer(ths, min_gpus, elapsed, sleep_time):
     print('\nResults:')
-    for th in min_prices:
-        price = min_prices[th]
-        price = str(price) + ' €' if price < 99999 else '-'
-        print(f'\t[{th}] target {ths[th]} €, current best price {price}')
+    print(tabulate([x.to_array() for x in min_gpus.values()], headers=['Origin', 'Title', 'Price', 'Target'], tablefmt="plain"))
+
     print(f'\nCompletion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
-    if sleep_time == 1:
-        print('WARNING: it seems there are too many things to do for the desiderate polling time! Please check...')
     print
 
 def main(driver, ths, sleep_time):
-    min_prices = {x: 99999 for x in ths.keys()}
+    min_gpus = {x: GPU(('-', x, '#', 99999, False), '-') for x in ths.keys()}
+    actual_sleep_time = 0
     while True:
         # start job
         start = time.time()
         clear_screen()  
         print_header(ths)
+        if actual_sleep_time == 1:
+            print('WARNING: it seems there are too many things to do for the desiderate polling time! Please check...\n')
 
         # read and check data
         try:
-            check_price(driver, get_data_ldlc(driver), ths, min_prices)
-            check_price(driver, get_data_amazon_it(driver), ths, min_prices)
-            check_price(driver, get_data_amazon_es(driver), ths, min_prices)
-            check_price(driver, get_data_next(driver), ths, min_prices)
+            check_price(driver, get_data_ldlc(driver), ths, min_gpus)
+            check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
+            check_price(driver, get_data_amazon_fr(driver), ths, min_gpus)
+            check_price(driver, get_data_amazon_es(driver), ths, min_gpus)
+            for page in range(1, 5):
+                check_price(driver, get_data_amazon_de(driver, page), ths, min_gpus)
+            check_price(driver, get_data_next(driver), ths, min_gpus)
         except Exception as e: print(e)
 
         # calc time and schedule next run 
         end = time.time()
         elapsed = int(end - start)
         actual_sleep_time = max(1, sleep_time - elapsed) # to avoid negative sleep time 
-        print_footer(ths, min_prices, elapsed, actual_sleep_time)
+        print_footer(ths, min_gpus, elapsed, actual_sleep_time)
         sleep(actual_sleep_time)
         
  
