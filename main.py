@@ -4,9 +4,10 @@ __version__ = "0.3.0"
 __license__ = "MIT"
 
 # target prices for each GPU
-ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 380, '3070': 550, '3080': 750, '3090': 1600}
+ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 750, '3090': 1600}
+ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 600, '3070': 550, '3080': 750, '3090': 1600}
 # how many seconds betweens checks   
-sleep_time = 3
+sleep_time = 10
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
@@ -18,6 +19,7 @@ import time, os
 from time import sleep
 from tabulate import tabulate
 
+import webbrowser
 from playsound import playsound
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -58,16 +60,20 @@ def clear_screen():
     _ = os.system('clear' if os.name == 'posix' else 'cls')
     
 def alarm():
-    for i in range (30):
+    for i in range (100):
         playsound('siren.wav')
-        time.sleep(5)
+        time.sleep(1)
 
 def get_time_str(s=0):
     delta = timedelta(0, s)
     return (datetime.now() + delta).strftime("%H:%M:%S")
 
-def get_data_ldlc(driver):
-    driver.get('https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/')
+def get_data_ldlc(driver, page):
+    url = "https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/+fv1026-5801+fv121-19183,19184,19185,19365,19509,19800,19801+fv134-1339.html"
+    if page > 1:
+     url = f"https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/pagina{page}/+fv1026-5801+fv121-19183,19184,19185,19365,19509,19800,19801+fv134-1339.html"
+
+    driver.get(url)
     uids = [x.get_attribute("id") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]/div[@class="pic"]/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//h3[@class="title-3"]/a')]
@@ -136,10 +142,11 @@ def check_price(driver, data, ths, min_gpus):
                     print(f'Price is {card.price} while threshold was set to {ths[th]}\n\n')
                     print(card.url)
                     
-                    driver.get(card.url)
+                    # open default browser on the card
+                    webbrowser.open(card.url)
+
                     alarm()
-                    return
-                break
+                    sleep(1000)
 
 history = {}
 def track(card):
@@ -174,7 +181,8 @@ def main(driver, ths, sleep_time):
         # read and check data
         try:
             # high speed polling
-            check_price(driver, get_data_ldlc(driver), ths, min_gpus)
+            for page in range(1, 6):
+                check_price(driver, get_data_ldlc(driver, page), ths, min_gpus)
             
             #low speed polling
             if counter % high_low_speed_ratio == 0:
