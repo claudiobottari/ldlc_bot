@@ -4,13 +4,15 @@ __version__ = "0.3.0"
 __license__ = "MIT"
 
 # target prices for each GPU
-ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 800, '3090': 1000}
+ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 380, '3070': 550, '3080': 750, '3090': 1600}
 # how many seconds betweens checks   
-sleep_time = 60
+sleep_time = 3
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
 low_th = 270
+# how many time checks high/low speed sites
+high_low_speed_ratio = 30
 
 import time, os
 from time import sleep
@@ -27,6 +29,7 @@ class GPU:
         (self.id, self.title, self.url, self.price, self.availability) = x
         self.origin = origin
         self.target = None
+        self.uid = self.origin + self.id
         
     def set_target(self, target):
         self.target = target
@@ -122,6 +125,7 @@ def check_price(driver, data, ths, min_gpus):
 
     print(tabulate([x.to_array() for x in data], headers=['Origin', 'Title', 'Price', ''], tablefmt="plain"))
     for card in data:
+        track(card)
         for th in ths:
             if th in card.title or th in card.title.replace(' ', ''):
                 if min_gpus[th].price > card.price:
@@ -137,44 +141,56 @@ def check_price(driver, data, ths, min_gpus):
                     return
                 break
 
-def print_header(ths):
-    print('GPU BOT by Claudio')
-    print(f'The BOT will keep running until manually stopped, current time: {get_time_str()}\n\n')
+history = {}
+def track(card):
+    if card.uid not in history.keys():
+        history[card.uid] = card
+    else:
+        stored_card = history[card.uid]
+        if card.price != stored_card.price:
+            print(card, '\nPrice changed from',  stored_card.price, 'to', card.price)
 
-def print_footer(ths, min_gpus, elapsed, sleep_time):
-    print('\nResults:')
+def print_header(counter, min_gpus):
+    print(f'GPU BOT by Claudio, it will keep running until manually stopped, run {counter}, current time: {get_time_str()}\n\n')
     print(tabulate([x.to_array() for x in min_gpus.values()], headers=['Origin', 'Title', 'Price', 'Target'], tablefmt="plain"))
+    print()
 
-    print(f'\nCompletion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
-    print
+def print_footer(elapsed, sleep_time):
+    print(f'\nDone. Completion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
 
 def main(driver, ths, sleep_time):
     min_gpus = {x: GPU(('-', x, '#', 99999, False), '-') for x in ths.keys()}
     actual_sleep_time = 0
+    counter = 0
     while True:
+        counter = counter + 1
         # start job
         start = time.time()
         clear_screen()  
-        print_header(ths)
+        print_header(counter, min_gpus)
         if actual_sleep_time == 1:
             print('WARNING: it seems there are too many things to do for the desiderate polling time! Please check...\n')
 
         # read and check data
         try:
+            # high speed polling
             check_price(driver, get_data_ldlc(driver), ths, min_gpus)
-            check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
-            check_price(driver, get_data_amazon_fr(driver), ths, min_gpus)
-            check_price(driver, get_data_amazon_es(driver), ths, min_gpus)
-            for page in range(1, 5):
-                check_price(driver, get_data_amazon_de(driver, page), ths, min_gpus)
-            check_price(driver, get_data_next(driver), ths, min_gpus)
+            
+            #low speed polling
+            if counter % high_low_speed_ratio == 0:
+                check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
+                check_price(driver, get_data_amazon_fr(driver), ths, min_gpus)
+                check_price(driver, get_data_amazon_es(driver), ths, min_gpus)
+                for page in range(1, 5):
+                    check_price(driver, get_data_amazon_de(driver, page), ths, min_gpus)
+                check_price(driver, get_data_next(driver), ths, min_gpus)
         except Exception as e: print(e)
 
         # calc time and schedule next run 
         end = time.time()
         elapsed = int(end - start)
         actual_sleep_time = max(1, sleep_time - elapsed) # to avoid negative sleep time 
-        print_footer(ths, min_gpus, elapsed, actual_sleep_time)
+        print_footer(elapsed, actual_sleep_time)
         sleep(actual_sleep_time)
         
  
