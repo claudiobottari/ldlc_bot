@@ -77,18 +77,24 @@ def get_time_str(s=0):
     delta = timedelta(0, s)
     return (datetime.now() + delta).strftime("%H:%M:%S")
 
-def get_data_ldlc(driver, page):
-    url = "https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/+fv1026-5801+fv121-19183,19184,19185,19365,19509,19800,19801+fv134-1339.html"
-    if page > 1:
-     url = f"https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/pagina{page}/+fv1026-5801+fv121-19183,19184,19185,19365,19509,19800,19801+fv134-1339.html"
+def read_and_check_ldlc(driver, ths, min_gpus):
+    uids = [x.get_attribute('data-product-id') for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
+    urls = [x.get_attribute('href') for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
+    prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[1]/div[@class="price"]/div')]
+    availabilities = [True for x in range(len(prices))]
+    data = [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4] and x[3] > low_th] #return only the available GPUs        
+    check_price(driver, data, ths, min_gpus)
 
-    driver.get(url)
-    uids = [x.get_attribute("id") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]')]
-    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//li[@class="pdt-item"]/div[@class="pic"]/a')]
-    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//h3[@class="title-3"]/a')]
-    prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//div[@class="price"]/div')]
-    availabilities = ['disabled' not in x.get_attribute("class") for x in driver.find_elements_by_xpath('//div[@class="basket"]/a')]
-    return [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4] and x[3] > low_th] #return only the available GPUs
+def get_data_ldlc(driver, ths, min_gpus):
+    driver.get("https://www.ldlc.com/it-it/informatica/componenti/scheda-video/c4684/+fv1026-5801+fv121-19183,19184,19185,19365,19509,19800,19801+fv134-1339.html")
+    read_and_check_ldlc(driver, ths, min_gpus)
+
+    # other pages
+    for url in [x.get_attribute('href') for x in driver.find_elements_by_xpath('//ul[@class="pagination"]/li/a')][:-1]:
+        print(url)
+        driver.get(url)
+        read_and_check_ldlc(driver, ths, min_gpus)
 
 def get_data_next(driver):
     driver.get('https://www.nexths.it//Products/getSkuFromLev/page/1/l0/Hardware%20Software/l1/Schede%20Video/sort/Dispo/rpp/48')
@@ -156,6 +162,7 @@ def check_price(driver, data, ths, min_gpus):
 
                     alarm()
                     sleep(1000)
+                break
 
 history = {}
 def track(card):
@@ -179,7 +186,6 @@ def main(driver, ths, sleep_time):
     actual_sleep_time = 0
     counter = 0
     while True:
-        counter = counter + 1
         # start job
         start = time.time()
         clear_screen()  
@@ -190,9 +196,8 @@ def main(driver, ths, sleep_time):
         # read and check data
         try:
             # high speed polling
-            for page in range(1, 6):
-                check_price(driver, get_data_ldlc(driver, page), ths, min_gpus)
-            
+            get_data_ldlc(driver, ths, min_gpus)
+
             #low speed polling
             if counter % high_low_speed_ratio == 0:
                 check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
@@ -209,6 +214,8 @@ def main(driver, ths, sleep_time):
         actual_sleep_time = max(1, sleep_time - elapsed) # to avoid negative sleep time 
         print_footer(elapsed, actual_sleep_time)
         sleep(actual_sleep_time)
+
+        counter = counter + 1
         
  
 if __name__ == "__main__":
