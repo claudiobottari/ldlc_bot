@@ -167,10 +167,14 @@ history = {}
 def track(card):
     if card.uid not in history.keys():
         history[card.uid] = card
-    else:
-        stored_card = history[card.uid]
-        if card.price != stored_card.price:
-            print(card, '\nPrice changed from',  stored_card.price, 'to', card.price)
+        store(card)
+    elif card.price != history[card.uid].price:
+        store(card)
+
+def store(card):
+    with open('log.csv', 'a', encoding="utf-8") as f:
+        f.write(f'{datetime.now().strftime("%d/%m/%Y %H:%M:%S")}, {card.origin}, {card.id}, "{card.title}", {card.url}, {card.price}')
+        f.write('\n')
 
 def print_header(counter, min_gpus):
     print(f'GPU BOT by Claudio, it will keep running until manually stopped, run {counter}, current time: {get_time_str()}\n\n')
