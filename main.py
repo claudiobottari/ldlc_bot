@@ -6,7 +6,7 @@ __license__ = "MIT"
 # target prices for each GPU
 ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 750, '3090': 1600  }
 # how many seconds betweens checks   
-sleep_time = 10
+sleep_time = 5
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
 driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
@@ -92,7 +92,6 @@ def get_data_ldlc(driver, ths, min_gpus):
 
     # other pages
     for url in [x.get_attribute('href') for x in driver.find_elements_by_xpath('//ul[@class="pagination"]/li/a')][:-1]:
-        print(url)
         driver.get(url)
         read_and_check_ldlc(driver, ths, min_gpus)
 
