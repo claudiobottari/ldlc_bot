@@ -4,8 +4,7 @@ __version__ = "0.3.0"
 __license__ = "MIT"
 
 # target prices for each GPU
-ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 750, '3090': 1600}
-ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 600, '3070': 550, '3080': 750, '3090': 1600}
+ths = {'3060 ti': 450, '3070 ti': 650, '3080 ti': 850, '3060': 350, '3070': 550, '3080': 750, '3090': 1600  }
 # how many seconds betweens checks   
 sleep_time = 10
 # selenium edge driver path (can run with Chrome or Firefox with few code updates)
@@ -47,14 +46,24 @@ class GPU:
             return [self.origin, self.title[:80], self.price if self.price != 99999 else '-', '']
 
 def get_driver(driver_path):
-    driverOptions = EdgeOptions()
-    driverOptions.use_chromium = True
-    driverOptions.binary_location = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-    driverOptions.add_argument('log-level=3')
-    driverOptions.add_experimental_option("excludeSwitches", ["enable-logging"])
+    options = EdgeOptions()
+    options.use_chromium = True
+    options.binary_location = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    
+    # avoid warnings
+    options.add_argument('log-level=3')
+
+    # headless
+    options.add_argument("headless")
+    options.add_argument("disable-gpu")
+
+    # no images
+    prefs = {"profile.managed_default_content_settings.images": 2}
+    options.add_experimental_option("prefs", prefs)
+    # options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     DRIVER_PATH = str(Path(driver_path).resolve())
-    return Edge(executable_path=DRIVER_PATH, options=driverOptions)
+    return Edge(executable_path=DRIVER_PATH, options=options)
 
 def clear_screen():
     _ = os.system('clear' if os.name == 'posix' else 'cls')
