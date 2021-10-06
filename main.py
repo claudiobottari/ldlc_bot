@@ -41,9 +41,9 @@ class GPU:
 
     def to_array(self):
         if self.target != None:
-            return [self.origin, self.title[:80], self.price if self.price != 99999 else '-', self.target]
+            return [self.origin, self.id, self.title[:50], self.price if self.price != 99999 else '-', self.target]
         else:
-            return [self.origin, self.title[:80], self.price if self.price != 99999 else '-', '']
+            return [self.origin, self.id, self.title[:50], self.price if self.price != 99999 else '-', '']
 
 def get_driver(driver_path):
     options = EdgeOptions()
@@ -54,8 +54,8 @@ def get_driver(driver_path):
     options.add_argument('log-level=3')
 
     # headless
-    # options.add_argument("headless")
-    # options.add_argument("disable-gpu")
+    options.add_argument("headless")
+    options.add_argument("disable-gpu")
 
     # no images
     prefs = {"profile.managed_default_content_settings.images": 2}
@@ -99,7 +99,7 @@ def read_and_check_amazon_uk(driver, ths, min_gpus):
     uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
-    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) * 117.49 for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
     data = [GPU(x, 'Amazon.uk') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
     check_price(driver, data, ths, min_gpus)
@@ -161,7 +161,7 @@ def get_data_amazon_de(driver, page):
 def check_price(driver, data, ths, min_gpus):
     if len(data) == 0: return
 
-    print(tabulate([x.to_array() for x in data], headers=['Origin', 'Title', 'Price', ''], tablefmt="plain"))
+    print(tabulate([x.to_array() for x in data], headers=['Origin', 'Id', 'Title', 'Price', ''], tablefmt="plain"))
     for card in data:
         track(card)
         for th in ths:
@@ -196,7 +196,7 @@ def store(card):
 
 def print_header(counter, min_gpus):
     print(f'GPU BOT by Claudio, it will keep running until manually stopped, run {counter}, current time: {get_time_str()}\n\n')
-    print(tabulate([x.to_array() for x in min_gpus.values()], headers=['Origin', 'Title', 'Price', 'Target'], tablefmt="plain"))
+    print(tabulate([x.to_array() for x in min_gpus.values()], headers=['Origin', 'Id', 'Title', 'Price', 'Target'], tablefmt="plain"))
     print()
 
 def print_footer(elapsed, sleep_time):
