@@ -95,6 +95,24 @@ def get_data_ldlc(driver, ths, min_gpus):
         driver.get(url)
         read_and_check_ldlc(driver, ths, min_gpus)
 
+def read_and_check_amazon_uk(driver, ths, min_gpus):
+    uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
+    urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    availabilities = [True for x in range(len(prices))]
+    data = [GPU(x, 'Amazon.uk') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
+    check_price(driver, data, ths, min_gpus)
+
+def get_data_amazon_uk(driver, ths, min_gpus):
+    driver.get('https://www.amazon.co.uk/s?k=Graphics+Cards&i=computers&rh=n%3A430500031%2Cp_n_condition-type%3A12319067031%2Cp_n_shipping_option-bin%3A2023186031&dc=&_encoding=UTF8&c=ts&qid=1633509008&rnid=428432031&ts_id=430500031&ref=sr_nr_p_36_6&low-price=250&high-price=2500')
+    read_and_check_amazon_uk(driver, ths, min_gpus)
+
+    # other pages
+    for url in [x.get_attribute('href') for x in driver.find_elements_by_xpath('//ul[@class="a-pagination"]/li/a')][1:-1]:
+        driver.get(url)
+        read_and_check_amazon_uk(driver, ths, min_gpus)
+
 def get_data_next(driver):
     driver.get('https://www.nexths.it//Products/getSkuFromLev/page/1/l0/Hardware%20Software/l1/Schede%20Video/sort/Dispo/rpp/48')
     uids = [x.get_attribute("id") for x in driver.find_elements_by_xpath('//div[@class="thumbnailx pcbox"]/a/img')]
@@ -111,7 +129,7 @@ def get_data_amazon_it(driver):
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
-    return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+    return [GPU(x, 'Amazon.it') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
 
 def get_data_amazon_es(driver):
     driver.get('https://www.amazon.es/s?i=computers&bbn=937935031&rh=n%3A667049031%2Cn%3A937912031%2Cn%3A17478031031%2Cn%3A937935031%2Cp_n_feature_seven_browse-bin%3A16069169031%2Cp_n_condition-type%3A15144009031&s=price-desc-rank&dc&fs=true&qid=1633341030&rnid=15144007031&ref=sr_st_price-desc-rank')
@@ -120,16 +138,16 @@ def get_data_amazon_es(driver):
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
-    return [GPU(x, 'Amazon.es') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+    return [GPU(x, 'Amazon.es') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
 
-def get_data_amazon_fr(driver):
+def get_data_amazon_fr(driver, origin='Amazon'):
     driver.get('https://www.amazon.fr/s?keywords=Cartes+graphiques&i=computers&rh=n%3A430340031%2Cp_n_feature_seven_browse-bin%3A15941744031%2Cp_36%3A27000-100000%2Cp_n_shipping_option-bin%3A2019350031%2Cp_n_condition-type%3A15135266031&dc&_encoding=UTF8&c=ts&qid=1633350520&rnid=15135264031&ts_id=430340031&ref=sr_nr_p_n_condition-type_1')
     uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
-    return [GPU(x, 'Amazon.fr') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+    return [GPU(x, origin) for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
 
 def get_data_amazon_de(driver, page):
     driver.get(f'https://www.amazon.de/-/en/s?k=Graphics+Cards&i=computers&rh=n%3A430161031%2Cp_n_feature_seven_browse-bin%3A15664227031%7C22756211031%2Cp_n_condition-type%3A776949031%2Cp_36%3A27000-200000&dc&page={page}&language=en&_encoding=UTF8&c=ts&qid=1633350892&rnid=428358031&ts_id=430161031')
@@ -200,9 +218,13 @@ def main(driver, ths, sleep_time):
         try:
             # high speed polling
             get_data_ldlc(driver, ths, min_gpus)
-
+            
+            
             #low speed polling
             if counter % high_low_speed_ratio == 0:
+                get_data_amazon_uk(driver, ths, min_gpus)
+
+                # old implementation
                 check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
                 check_price(driver, get_data_amazon_fr(driver), ths, min_gpus)
                 check_price(driver, get_data_amazon_es(driver), ths, min_gpus)
