@@ -54,8 +54,8 @@ def get_driver(driver_path):
     options.add_argument('log-level=3')
 
     # headless
-    options.add_argument("headless")
-    options.add_argument("disable-gpu")
+    # options.add_argument("headless")
+    # options.add_argument("disable-gpu")
 
     # no images
     prefs = {"profile.managed_default_content_settings.images": 2}
@@ -78,10 +78,10 @@ def get_time_str(s=0):
     return (datetime.now() + delta).strftime("%H:%M:%S")
 
 def read_and_check_ldlc(driver, ths, min_gpus):
-    uids = [x.get_attribute('data-product-id') for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]')]
-    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
-    urls = [x.get_attribute('href') for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
-    prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//a[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[1]/div[@class="price"]/div')]
+    uids = [x.get_attribute('data-product-id') for x in driver.find_elements_by_xpath('//button[@class="button picto-seul color2 add-to-cart"]')]
+    titles = [x.text.lower() for x in driver.find_elements_by_xpath('//button[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
+    urls = [x.get_attribute('href') for x in driver.find_elements_by_xpath('//button[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[2]//h3[@class="title-3"]/a')]
+    prices = [float(x.text.replace(' ', '').replace('€', '.')) for x in driver.find_elements_by_xpath('//button[@class="button picto-seul color2 add-to-cart"]/ancestor::node()[1]/div[@class="price"]/div')]
     availabilities = [True for x in range(len(prices))]
     data = [GPU(x, 'LDLC') for x in zip(uids, titles, urls, prices, availabilities) if x[4] and x[3] > low_th] #return only the available GPUs        
     check_price(driver, data, ths, min_gpus)
