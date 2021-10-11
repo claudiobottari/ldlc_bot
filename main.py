@@ -12,7 +12,7 @@ driver_path = 'edgedriver/msedgedriver.exe'
 # mininum price used to avoid accessories (such as coolers) and old cheap GPUs
 low_th = 270
 # how many time checks high/low speed sites
-high_low_speed_ratio = 30
+high_low_speed_ratio = 5
 
 import time, os
 from time import sleep
@@ -41,9 +41,9 @@ class GPU:
 
     def to_array(self):
         if self.target != None:
-            return [self.origin, self.id, self.title[:50], self.price if self.price != 99999 else '-', self.target]
+            return [self.origin, self.id, self.title[:60], self.price if self.price != 99999 else '-', self.target]
         else:
-            return [self.origin, self.id, self.title[:50], self.price if self.price != 99999 else '-', '']
+            return [self.origin, self.id, self.title[:60], self.price if self.price != 99999 else '-', '']
 
 def get_driver(driver_path):
     options = EdgeOptions()
@@ -99,7 +99,7 @@ def read_and_check_amazon_uk(driver, ths, min_gpus):
     uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
-    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) * 117.49 for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
+    prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) * 1.175 for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
     data = [GPU(x, 'Amazon.uk') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
     check_price(driver, data, ths, min_gpus)
@@ -140,14 +140,14 @@ def get_data_amazon_es(driver):
     availabilities = [True for x in range(len(prices))]
     return [GPU(x, 'Amazon.es') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
 
-def get_data_amazon_fr(driver, origin='Amazon'):
+def get_data_amazon_fr(driver):
     driver.get('https://www.amazon.fr/s?keywords=Cartes+graphiques&i=computers&rh=n%3A430340031%2Cp_n_feature_seven_browse-bin%3A15941744031%2Cp_36%3A27000-100000%2Cp_n_shipping_option-bin%3A2019350031%2Cp_n_condition-type%3A15135266031&dc&_encoding=UTF8&c=ts&qid=1633350520&rnid=15135264031&ts_id=430340031&ref=sr_nr_p_n_condition-type_1')
     uids = [x.get_attribute("data-asin") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[17]')]
     urls = [x.get_attribute("href") for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2/a')]
     titles = [x.text.lower() for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]/ancestor::node()[9]//h2')]
     prices = [float(x.text.replace('.', '').replace(' ', '').replace(',', '.').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
-    return [GPU(x, origin) for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
+    return [GPU(x, 'Amazon.fr') for x in zip(uids, titles, urls, prices, availabilities) if x[3] > low_th]
 
 def get_data_amazon_de(driver, page):
     driver.get(f'https://www.amazon.de/-/en/s?k=Graphics+Cards&i=computers&rh=n%3A430161031%2Cp_n_feature_seven_browse-bin%3A15664227031%7C22756211031%2Cp_n_condition-type%3A776949031%2Cp_36%3A27000-200000&dc&page={page}&language=en&_encoding=UTF8&c=ts&qid=1633350892&rnid=428358031&ts_id=430161031')
@@ -157,6 +157,12 @@ def get_data_amazon_de(driver, page):
     prices = [float(x.text.replace(' ', '').replace(',', '').replace('€', '')) for x in driver.find_elements_by_xpath('//div[@data-asin]//span[@class="a-price-whole"]')]
     availabilities = [True for x in range(len(prices))]
     return [GPU(x, 'Amazon.de') for x in zip(uids, titles, urls, prices, availabilities)if x[3] > low_th]
+
+def get_model(card):
+    for th in ths:
+        if th in card.title or th in card.title.replace(' ', ''):
+            return th
+    return 'other'
 
 def check_price(driver, data, ths, min_gpus):
     if len(data) == 0: return
@@ -168,7 +174,7 @@ def check_price(driver, data, ths, min_gpus):
             if th in card.title or th in card.title.replace(' ', ''):
                 if min_gpus[th].price > card.price:
                     min_gpus[th] = card.set_target(ths[th])
-                if ths[th] > card.price and card.price > ths[th] / 2: # check threshold and also discard prices too low (can be GPU accessories and scams)
+                if ths[th] > card.price and card.price > ths[th] * 0.75: # check threshold and also discard prices too low (can be GPU accessories and scams)
                     print('\n\nTARGET FOUND')
                     print(card)
                     print(f'Price is {card.price} while threshold was set to {ths[th]}\n\n')
@@ -203,11 +209,19 @@ def print_footer(elapsed, sleep_time):
     print(f'\nDone. Completion time {elapsed} seconds, next run at: {get_time_str(sleep_time)}\n\n')
 
 def main(driver, ths, sleep_time):
+    import sys
+
+    target = sys.argv[1]
+    if target not in ['ldlc', 'amazon.uk', 'amazon.it', 'amazon.fr', 'amazon.es', 'amazon.de', 'next', 'all']:
+        print('wrong argument')
+        return
+
     min_gpus = {x: GPU(('-', x, '#', 99999, False), '-') for x in ths.keys()}
     actual_sleep_time = 0
     counter = 0
     while True:
         # start job
+        is_low_freq_time = counter % high_low_speed_ratio == 0
         start = time.time()
         clear_screen()  
         print_header(counter, min_gpus)
@@ -216,20 +230,21 @@ def main(driver, ths, sleep_time):
 
         # read and check data
         try:
-            # high speed polling
-            get_data_ldlc(driver, ths, min_gpus)
-            
-            
-            #low speed polling
-            if counter % high_low_speed_ratio == 0:
-                get_data_amazon_uk(driver, ths, min_gpus)
 
-                # old implementation
+            if target == 'ldlc' or  target == 'all':
+                get_data_ldlc(driver, ths, min_gpus)
+            if (target == 'amazon.uk' or  target == 'all') and is_low_freq_time:
+                get_data_amazon_uk(driver, ths, min_gpus)
+            if (target == 'amazon.it' or  target == 'all') and is_low_freq_time:
                 check_price(driver, get_data_amazon_it(driver), ths, min_gpus)
+            if (target == 'amazon.fr' or  target == 'all') and is_low_freq_time:
                 check_price(driver, get_data_amazon_fr(driver), ths, min_gpus)
+            if (target == 'amazon.es' or  target == 'all') and is_low_freq_time:
                 check_price(driver, get_data_amazon_es(driver), ths, min_gpus)
+            if (target == 'amazon.de' or  target == 'all') and is_low_freq_time:
                 for page in range(1, 5):
                     check_price(driver, get_data_amazon_de(driver, page), ths, min_gpus)
+            if (target == 'next' or  target == 'all') and is_low_freq_time:
                 check_price(driver, get_data_next(driver), ths, min_gpus)
         except Exception as e: print(e)
 
